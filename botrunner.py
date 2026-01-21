@@ -80,7 +80,12 @@ def build_pipeline(config: BotConfig) -> Pipeline:
         params=DailyParams(
             api_key=config.daily_api_key,
             vad_analyzer=vad_analyzer,
-            audio_in_stream_on_start=True,
+            audio_in_enabled=True,
+            audio_out_enabled=True,
+            video_out_enabled=True,
+            video_out_is_live=True,
+            video_out_width=512,
+            video_out_height=512,
         ),
     )
 
@@ -107,21 +112,25 @@ def build_pipeline(config: BotConfig) -> Pipeline:
     simli = SimliVideoService(
         api_key=config.simli_api_key,
         face_id=config.simli_face_id,
+        params=SimliVideoService.InputParams(
+            max_session_length=3600,  # 1 hour
+            max_idle_time=300,        # 5 minutes
+        ),
     )
 
     llm_context = LLMContext()
-    llm_aggregators = LLMContextAggregatorPair(context=llm_context)
+    user_aggregator, assistant_aggregator = LLMContextAggregatorPair(context=llm_context)
 
     return Pipeline(
         [
             transport.input(),
             stt,
-            llm_aggregators.user(),
+            user_aggregator,
             llm,
-            llm_aggregators.assistant(),
             tts,
             simli,
             transport.output(),
+            assistant_aggregator,
         ]
     )
 
