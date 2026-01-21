@@ -1,0 +1,107 @@
+# =============================================================================
+# Docker Build Ignore Rules
+# =============================================================================
+# Excludes files from Docker build context to speed up builds and reduce
+# image size. Critical for keeping sensitive data out of containers.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Environment and Secrets (CRITICAL - Never include in images)
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+,env
+*.pem
+*.key
+secrets/
+
+# -----------------------------------------------------------------------------
+# Version Control
+# -----------------------------------------------------------------------------
+.git
+.gitignore
+.gitattributes
+
+# -----------------------------------------------------------------------------
+# IDE and Editor
+# -----------------------------------------------------------------------------
+.vscode/
+.idea/
+.cursor/
+.cursorrules
+*.swp
+*.swo
+*~
+
+# -----------------------------------------------------------------------------
+# Python Artifacts
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+venv/
+ENV/
+env/
+.venv/
+
+# -----------------------------------------------------------------------------
+# Testing and Coverage
+# -----------------------------------------------------------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# -----------------------------------------------------------------------------
+# Documentation
+# -----------------------------------------------------------------------------
+docs/
+*.md
+!README.md
+LICENSE
+
+# -----------------------------------------------------------------------------
+# Local Development Files
+# -----------------------------------------------------------------------------
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+
+# Storage directories (for local dev)
+storage/
+data/
+uploads/
+
+# Lock files (installed fresh in container)
+uv.lock
+poetry.lock
+
+# Old/backup versions
+botrunner.py
+main.py

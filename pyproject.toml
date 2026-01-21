@@ -1,0 +1,33 @@
+[project]
+name = "marco-cloud-agent"
+version = "1.0.0"
+description = "Personal voice avatar with local RAG for Pipecat Cloud deployment"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pipecat-ai[cartesia,daily,deepgram,google,simli]>=0.0.99",
+    "pipecat-cloud>=0.0.10",
+    "lancedb>=0.6.0",
+    "google-generativeai>=0.8.0",
+    "python-json-logger>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+ingest = "scripts.ingest_documents:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["rag*", "processors*", "scripts*"]
+exclude = ["tests*", "knowledge*"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
