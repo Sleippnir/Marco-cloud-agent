@@ -225,10 +225,14 @@ async def main(room_url: str, token: str | None = None) -> None:
         model=config.cartesia_model,
     )
 
-    # Simli avatar video
+    # Simli avatar video with proper session timeout configuration
     simli = SimliVideoService(
         api_key=config.simli_api_key,
         face_id=config.simli_face_id,
+        params=SimliVideoService.InputParams(
+            max_session_length=3600,  # 1 hour
+            max_idle_time=300,        # 5 minutes (matches old SimliConfig default)
+        ),
     )
 
     # LLM context for conversation history
