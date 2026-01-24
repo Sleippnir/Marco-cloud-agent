@@ -24,6 +24,16 @@ Audio In → VAD → Deepgram STT → [RAG Context] → Gemini LLM → Cartesia 
 - API keys for: Daily, Deepgram, Google AI, Cartesia, Simli
 - Docker (for deployment)
 
+### Platform Requirements
+
+| Platform | Local Dev | Docker Build |
+|----------|-----------|--------------|
+| **Linux** | Native | Native |
+| **macOS** | Native | Native |
+| **Windows** | WSL only | WSL Docker |
+
+> **Windows users**: The `pipecat-ai[daily]` package has no Windows wheels. You must run from WSL (Windows Subsystem for Linux). Install dependencies and run `python bot.py` inside your WSL environment.
+
 ### Local Development
 
 1. Clone and install dependencies:

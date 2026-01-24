@@ -52,10 +52,19 @@ simli = SimliVideoService(
 
 The agent waits up to 30s for Simli's WebSocket to be ready before sending greeting (lines 288-313).
 
+## Platform Notes
+
+**Windows**: No native wheels for `pipecat-ai[daily]`. Must run from WSL:
+```bash
+# In WSL terminal
+cd /mnt/c/Projects/GitHub/Marco-cloud-agent
+python bot.py
+```
+
 ## Deployment Commands
 
 ```bash
-# Build and push image
+# Build and push image (from WSL on Windows)
 docker build -t sleippnir/marco-voice-avatar:latest .
 docker push sleippnir/marco-voice-avatar:latest
 
