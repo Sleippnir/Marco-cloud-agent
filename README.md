@@ -1,187 +1,133 @@
 # Marco Voice Avatar
 
-A personal voice avatar powered by Pipecat that speaks as you, with a local knowledge base about your projects and background.
+A real-time voice agent with video avatar powered by Pipecat, deployable to Pipecat Cloud.
 
-## What It Does
+## Features
 
-- **Speaks as you** — Uses a custom prompt to emulate your personality
-- **Knows about you** — RAG retrieves relevant info about your projects/background
-- **Zero latency** — LanceDB embedded means instant knowledge retrieval
-- **Pipecat Cloud ready** — Containerized for easy deployment
+- **Voice Conversation**: Deepgram STT + Cartesia TTS for natural speech
+- **AI Brain**: Google Gemini 2.5 Flash for fast, intelligent responses
+- **Video Avatar**: Simli lip-synced video avatar
+- **RAG Knowledge Base**: LanceDB-embedded retrieval for grounded answers
+- **Pipecat Cloud Ready**: One-command deployment with auto-scaling
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                            Frame Pipeline                                │
-├─────────┬─────────┬─────────┬─────────┬─────────┬─────────┬─────────────┤
-│  Daily  │Deepgram │   RAG   │ Context │ Google  │Cartesia │   Simli     │
-│  Input  │   STT   │Processor│  Agg    │ Gemini  │   TTS   │   Avatar    │
-│ (Audio) │         │         │         │   LLM   │         │  (Video)    │
-└────┬────┴────┬────┴────┬────┴────┬────┴────┬────┴────┬────┴──────┬──────┘
-     │         │         │         │         │         │           │
-     │         │    ┌────┴────┐    │         │         │           │
-     │         │    │ LanceDB │    │         │         │           │
-     │         │    │(embedded│    │         │         │           │
-     │         │    │ in img) │    │         │         │           │
-     │         │    └─────────┘    │         │         │           │
-     └─────────┴───────────────────┴─────────┴─────────┴───────────┘
+Audio In → VAD → Deepgram STT → [RAG Context] → Gemini LLM → Cartesia TTS → Simli Video → Out
 ```
 
 ## Quick Start
 
-### 1. Add Your Knowledge
+### Prerequisites
 
-Create markdown files in `knowledge/`:
+- Python 3.12+
+- API keys for: Daily, Deepgram, Google AI, Cartesia, Simli
+- Docker (for deployment)
 
-```markdown
-# knowledge/about_me.md
+### Local Development
 
-# About Me
-I'm Marco, a software engineer specializing in real-time voice AI...
+1. Clone and install dependencies:
+   ```bash
+   git clone https://github.com/Sleippnir/Marco-cloud-agent.git
+   cd Marco-cloud-agent
+   pip install -r requirements.txt
+   ```
 
-# Projects
-## Voice Avatar Project
-Built a personal voice avatar using Pipecat and Simli...
-```
+2. Create `.env` file (see `env.example`):
+   ```bash
+   cp env.example .env
+   # Edit .env with your API keys
+   ```
 
-### 2. Configure Environment
+3. Run locally:
+   ```bash
+   python bot.py
+   ```
+
+### Pipecat Cloud Deployment
+
+1. Build and push Docker image:
+   ```bash
+   docker build -t your-registry/marco-avatar:latest .
+   docker push your-registry/marco-avatar:latest
+   ```
+
+2. Create secrets in Pipecat Cloud:
+   ```bash
+   pipecat cloud secrets set avatar-secrets \
+     DAILY_API_KEY=xxx \
+     DEEPGRAM_API_KEY=xxx \
+     GOOGLE_API_KEY=xxx \
+     CARTESIA_API_KEY=xxx \
+     CARTESIA_VOICE_ID=xxx \
+     SIMLI_API_KEY=xxx \
+     SIMLI_FACE_ID=xxx
+   ```
+
+3. Update `pcc-deploy.toml` with your image registry
+
+4. Deploy:
+   ```bash
+   pipecat cloud deploy
+   ```
+
+5. Start a session:
+   ```bash
+   pipecat cloud agent start marco-voice-avatar
+   ```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DAILY_API_KEY` | Yes | - | Daily.co API key |
+| `DEEPGRAM_API_KEY` | Yes | - | Deepgram STT API key |
+| `GOOGLE_API_KEY` | Yes | - | Google AI API key |
+| `CARTESIA_API_KEY` | Yes | - | Cartesia TTS API key |
+| `CARTESIA_VOICE_ID` | Yes | - | Cartesia voice ID |
+| `SIMLI_API_KEY` | Yes | - | Simli API key |
+| `SIMLI_FACE_ID` | Yes | - | Simli face/avatar ID |
+| `RAG_ENABLED` | No | `true` | Enable RAG context injection |
+| `BOT_NAME` | No | `Marco` | Bot display name |
+| `GOOGLE_MODEL` | No | `gemini-2.5-flash` | Google model to use |
+
+### RAG Knowledge Base
+
+Place markdown files in `knowledge/` directory before building the Docker image. The knowledge base is indexed at build time for zero-latency queries.
 
 ```bash
-cp env.example .env
-# Edit .env with your API keys
-```
+# Add your documents
+cp your-docs/*.md knowledge/
 
-### 3. Build the Knowledge Base
-
-```bash
-# Install dependencies
-pip install -e .
-
-# Build LanceDB index
-python scripts/ingest_documents.py --dir knowledge/ --pattern "*.md"
-```
-
-### 4. Run Locally
-
-```bash
-export DAILY_ROOM_URL=https://your-domain.daily.co/test-room
-python bot.py
-```
-
-## Deploy to Pipecat Cloud
-
-### 1. Create Secret Set
-
-```bash
-pip install pipecat-cloud
-pipecat-cloud auth login
-pipecat-cloud secrets create --name avatar-secrets
-```
-
-Add these secrets:
-- `DAILY_API_KEY`
-- `DEEPGRAM_API_KEY`
-- `GOOGLE_API_KEY`
-- `CARTESIA_API_KEY`, `CARTESIA_VOICE_ID`
-- `SIMLI_API_KEY`, `SIMLI_FACE_ID`
-
-### 2. Build Docker Image
-
-```bash
-# Build with knowledge base baked in
-docker build \
-  --build-arg GOOGLE_API_KEY=$GOOGLE_API_KEY \
-  -t your-registry/marco-avatar:latest .
-
-docker push your-registry/marco-avatar:latest
-```
-
-### 3. Deploy
-
-Update `pcc-deploy.toml`:
-```toml
-image = "your-registry/marco-avatar:latest"
-secret_set = "avatar-secrets"
-```
-
-```bash
-pipecat-cloud deploy
+# Rebuild with knowledge
+docker build -t your-registry/marco-avatar:latest .
 ```
 
 ## Project Structure
 
 ```
-├── bot.py                  # Pipecat Cloud entry point
-├── prompts.py              # Personal avatar prompts
-├── processors/
-│   └── rag_processor.py    # RAG context injection
-├── rag/
-│   ├── embeddings.py       # Google embeddings
-│   └── retriever.py        # LanceDB retriever
-├── knowledge/              # YOUR DOCS GO HERE
-│   └── README.md           # Template
-├── knowledge_base/         # Built LanceDB index (generated)
-├── scripts/
-│   └── ingest_documents.py # Build knowledge base
-├── tests/
-│   ├── test_rag_retriever.py
-│   └── test_rag_processor.py
-├── Dockerfile
-├── pcc-deploy.toml
-└── requirements.txt
+├── bot.py              # Main Pipecat agent (cloud entry point)
+├── botrunner.py        # Alternative local runner
+├── Dockerfile          # Container build with embedded RAG
+├── pcc-deploy.toml     # Pipecat Cloud deployment config
+├── requirements.txt    # Python dependencies
+├── rag/                # RAG retrieval module
+│   ├── embeddings.py   # Google embedding service
+│   └── retriever.py    # LanceDB vector search
+├── processors/         # Custom frame processors
+│   └── rag_processor.py
+├── knowledge/          # Source documents for RAG
+└── scripts/
+    └── ingest_documents.py  # Build LanceDB index
 ```
 
-## Customization
+## Known Issues
 
-### Personality Prompts
-
-Edit `prompts.py` or set `SYSTEM_INSTRUCTION` env var:
-
-```python
-from prompts import get_system_instruction
-
-# Available: "default", "concise", "professional", "casual"
-instruction = get_system_instruction("professional")
-```
-
-### RAG Tuning
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `RAG_ENABLED` | `true` | Enable/disable RAG |
-| `RAG_MATCH_COUNT` | `3` | Documents to retrieve |
-| `RAG_MATCH_THRESHOLD` | `0.5` | Similarity threshold |
-| `RAG_MIN_QUERY_LENGTH` | `8` | Skip RAG for short utterances |
-
-### Voice/Avatar
-
-| Service | Variables |
-|---------|-----------|
-| Deepgram STT | `DEEPGRAM_MODEL`, `DEEPGRAM_LANGUAGE` |
-| Cartesia TTS | `CARTESIA_VOICE_ID`, `CARTESIA_MODEL` |
-| Simli Avatar | `SIMLI_FACE_ID` |
-
-## Testing
-
-```bash
-# Install dev deps
-pip install -e ".[dev]"
-
-# Run tests
-pytest -v
-```
-
-## How RAG Works
-
-1. You speak → Deepgram transcribes
-2. RAGContextProcessor queries LanceDB for relevant docs
-3. Context is injected into the system prompt
-4. Gemini generates a response "as you"
-5. Cartesia speaks, Simli animates
-
-Since LanceDB is embedded in the container, retrieval takes ~1-5ms vs 50-200ms for external databases.
+- Simli video avatar initialization can be slow (~30s warmup)
+- First response may be delayed while Simli WebSocket connects
 
 ## License
 
-See LICENSE file.
+MIT

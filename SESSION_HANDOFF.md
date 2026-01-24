@@ -1,29 +1,43 @@
-# Session Handoff - January 21, 2026
+# Session Handoff: Simli Troubleshooting
+
+**Branch**: `simli-troubleshooting`
+**Date**: January 24, 2026
+**Status**: Deployment works, but Simli video has issues
 
 ## Current State
 
-The project is a **Pipecat-based voice agent** with RAG capabilities, designed to deploy to Pipecat Cloud. The bot uses:
-- **Daily Transport** for WebRTC audio/video
-- **Simli** for avatar video generation
-- **Deepgram** for STT
-- **Cartesia** for TTS
-- **Google Gemini** for LLM
-- **LanceDB** (embedded) for local RAG knowledge base
+The voice agent deploys successfully to Pipecat Cloud and handles voice conversations. However, the Simli video avatar integration has reliability issues.
 
-## Latest Fix (Just Committed)
+### What Works
 
-**Commit:** `539b342` - "Fix Simli WSDC timeout: add InputParams with max_session_length and max_idle_time"
+- Pipecat Cloud deployment via Docker image
+- Deepgram STT (speech-to-text)
+- Google Gemini LLM (conversation)
+- Cartesia TTS (text-to-speech)
+- RAG knowledge base (LanceDB embedded at build time)
+- Daily WebRTC transport
+- Agent health checks pass
+- Sessions start successfully
 
-### The Problem
-The Simli avatar video was disconnecting after ~45-60 seconds with repeated errors:
-```
-Error sending audio: WSDC Not ready, please wait until self.ready is True
-```
+### What's Problematic
 
-Logs showed: `disconnected from room with reason: ClientInitiated` - meaning the Simli SDK was terminating the LiveKit WebSocket Data Channel prematurely due to short default timeout values.
+- **Simli video avatar**: Works "barely" - likely timing/initialization issues
+- Simli WebSocket connection may timeout before first response
+- Video may not appear or sync correctly with audio
 
-### The Fix
-Added `SimliVideoService.InputParams` to `bot.py` (lines 229-237):
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `bot.py` | Main agent - Pipecat Cloud entry point via `bot()` function |
+| `Dockerfile` | Builds image with embedded LanceDB knowledge base |
+| `pcc-deploy.toml` | Pipecat Cloud deployment configuration |
+| `rag/retriever.py` | LanceDB vector search |
+| `processors/rag_processor.py` | Injects RAG context into LLM prompts |
+
+## Simli Integration Details
+
+Located in `bot.py` lines 228-236:
 
 ```python
 simli = SimliVideoService(
@@ -31,108 +45,56 @@ simli = SimliVideoService(
     face_id=config.simli_face_id,
     params=SimliVideoService.InputParams(
         max_session_length=3600,  # 1 hour
-        max_idle_time=300,        # 5 minutes (matches old SimliConfig default)
+        max_idle_time=300,        # 5 minutes
     ),
 )
 ```
 
-### Why This Should Work
-- The user's old working bot used `SimliConfig(api_key, face_id)` which had proper defaults
-- The new Pipecat API (v0.0.92+) deprecated `simli_config` in favor of `api_key`, `face_id`, and `params`
-- Without explicit `InputParams`, the SDK uses very short idle timeouts causing disconnect
-- Sources: reference-server.pipecat.ai, docs.simli.com (Jan 2026)
+The agent waits up to 30s for Simli's WebSocket to be ready before sending greeting (lines 288-313).
 
-## Immediate Next Step: TEST THE FIX
+## Deployment Commands
 
-The Docker image needs to be rebuilt and tested:
+```bash
+# Build and push image
+docker build -t sleippnir/marco-voice-avatar:latest .
+docker push sleippnir/marco-voice-avatar:latest
 
-```powershell
-# Rebuild with no-cache to ensure changes are picked up
-docker build --no-cache --build-arg GOOGLE_API_KEY="$env:GOOGLE_API_KEY" -t marco-avatar:test .
+# Deploy to Pipecat Cloud
+pipecat cloud deploy --no-credentials --force
 
-# Create room and run container
-$roomName = "marco-" + (Get-Date -Format "HHmmss")
-$headers = @{ "Authorization" = "Bearer $env:DAILY_API_KEY"; "Content-Type" = "application/json" }
-$body = '{"name": "' + $roomName + '"}'
-$response = Invoke-RestMethod -Uri "https://api.daily.co/v1/rooms" -Method Post -Headers $headers -Body $body
-Write-Host "`nJOIN: $($response.url)`n"
+# Check status
+pipecat cloud agent status marco-voice-avatar
 
-docker run `
-  -e DAILY_ROOM_URL="$($response.url)" `
-  -e DAILY_API_KEY="$env:DAILY_API_KEY" `
-  -e SIMLI_API_KEY="$env:SIMLI_API_KEY" `
-  -e SIMLI_FACE_ID="$env:SIMLI_FACE_ID" `
-  -e DEEPGRAM_API_KEY="$env:DEEPGRAM_API_KEY" `
-  -e CARTESIA_API_KEY="$env:CARTESIA_API_KEY" `
-  -e CARTESIA_VOICE_ID="$env:CARTESIA_VOICE_ID" `
-  -e GOOGLE_API_KEY="$env:GOOGLE_API_KEY" `
-  -e BOT_NAME="Marco" `
-  marco-avatar:test
+# View logs
+pipecat cloud agent logs marco-voice-avatar
+
+# Start session
+pipecat cloud agent start marco-voice-avatar
 ```
 
-> **Note:** Load your API keys from your local `.env` file or set them as environment variables before running.
+## Secrets Configuration
 
-## What to Verify During Testing
+Secret set: `avatar-secrets` in Pipecat Cloud
 
-1. **Avatar video persists** - Should NOT disconnect after ~1 minute
-2. **Audio/video sync** - Lips should match speech
-3. **Bot responsiveness** - Should respond naturally to speech
-4. **End call function** - Saying "end the call" should trigger graceful disconnect
-5. **Initial greeting** - Bot should greet when user joins
+Required secrets:
+- `DAILY_API_KEY`
+- `DEEPGRAM_API_KEY`
+- `GOOGLE_API_KEY`
+- `CARTESIA_API_KEY`
+- `CARTESIA_VOICE_ID`
+- `SIMLI_API_KEY`
+- `SIMLI_FACE_ID`
 
-## Key Files
+## Next Steps to Investigate
 
-| File | Purpose |
-|------|---------|
-| `bot.py` | Main Pipecat Cloud entry point with pipeline setup |
-| `rag/retriever.py` | LanceDB-based semantic search |
-| `rag/embeddings.py` | Google text-embedding-004 wrapper |
-| `processors/rag_processor.py` | RAGContextProcessor for augmenting LLM context |
-| `Dockerfile` | Container definition with LanceDB index build |
-| `knowledge/` | Markdown files for RAG knowledge base |
+1. **Simli WebSocket timing**: Check if the 30s wait is sufficient or if there's a race condition
+2. **Simli client state**: The `_client.ready` check may not be the right indicator
+3. **Video frame flow**: Verify TTS audio frames are reaching Simli correctly
+4. **Simli logs**: Look for errors in Simli's WebSocket connection
+5. **Consider Simli's `sync_audio` parameter**: May need adjustment for lip-sync
 
-## Environment Variables Required
+## References
 
-See `env.example` for the full list. Keys are stored locally in `.env` (gitignored).
-
-Required services:
-- **Daily** - WebRTC transport (API key + room URL)
-- **Simli** - Avatar video (API key + face ID)
-- **Deepgram** - STT (API key)
-- **Cartesia** - TTS (API key + voice ID)
-- **Google** - LLM + embeddings (API key)
-
-## Remaining TODOs
-
-- [x] Add SimliVideoService.InputParams with max_session_length and max_idle_time
-- [ ] Rebuild Docker image and test Simli video stability
-- [ ] If working, deploy to Pipecat Cloud
-
-## Technical Context
-
-### Pipecat Version
-Running **Pipecat 0.0.99** (per container logs)
-
-### Pipeline Architecture
-```
-audio in → VAD → STT → [RAG context injection] → LLM → TTS → Simli → audio/video out
-```
-
-### Known Deprecation Warnings (Safe to Ignore)
-- `OpenAILLMContext` deprecated - should migrate to universal `LLMContext`
-- `EmulateUserStartedSpeakingFrame` deprecated
-- These don't affect functionality currently
-
-## Previous Session Debug History
-
-The Simli issue went through several debug iterations:
-1. Initially thought it was `sync_audio` parameter issue
-2. Tried reverting `DailyParams` to match old working bot
-3. Discovered the actual cause: missing `InputParams` with session timeouts
-4. Key log evidence: `disconnected from room with reason: ClientInitiated` at ~45-69 seconds
-
-## Contact / References
-
-- Pipecat Docs: https://reference-server.pipecat.ai
-- Simli Docs: https://docs.simli.com
-- Daily Docs: https://docs.daily.co
+- [Pipecat Simli integration](https://github.com/pipecat-ai/pipecat/tree/main/src/pipecat/services/simli)
+- [Simli API docs](https://docs.simli.com/)
+- [Pipecat Cloud docs](https://docs.pipecat.ai/cloud)
