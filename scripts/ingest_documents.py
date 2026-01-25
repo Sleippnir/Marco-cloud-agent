@@ -10,7 +10,6 @@ Usage:
 
 import argparse
 import logging
-import os
 import sys
 from pathlib import Path
 from typing import List
@@ -18,7 +17,7 @@ from typing import List
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from rag.embeddings import GoogleEmbeddings
+from rag.embeddings import LocalEmbeddings
 from rag.retriever import LanceDBRetriever
 
 logging.basicConfig(
@@ -151,11 +150,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Check for API key
-    if not os.getenv("GOOGLE_API_KEY"):
-        logger.error("GOOGLE_API_KEY environment variable is required")
-        sys.exit(1)
-
     logger.info(f"Reading documents from: {args.dir}")
     logger.info(f"Pattern: {args.pattern}")
     logger.info(f"Output: {args.output}")
@@ -173,7 +167,7 @@ def main():
 
     # Initialize retriever (this will create the database)
     try:
-        embeddings = GoogleEmbeddings()
+        embeddings = LocalEmbeddings()
         retriever = LanceDBRetriever(
             db_path=args.output,
             embeddings=embeddings,

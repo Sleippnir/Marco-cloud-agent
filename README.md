@@ -119,12 +119,12 @@ docker build -t your-registry/marco-avatar:latest .
 
 ```
 ├── bot.py              # Main Pipecat agent (cloud entry point)
-├── botrunner.py        # Alternative local runner
+├── simli_debug_bot.py  # Debug bot for Simli testing
 ├── Dockerfile          # Container build with embedded RAG
 ├── pcc-deploy.toml     # Pipecat Cloud deployment config
 ├── requirements.txt    # Python dependencies
 ├── rag/                # RAG retrieval module
-│   ├── embeddings.py   # Google embedding service
+│   ├── embeddings.py   # Local embeddings (fastembed)
 │   └── retriever.py    # LanceDB vector search
 ├── processors/         # Custom frame processors
 │   └── rag_processor.py

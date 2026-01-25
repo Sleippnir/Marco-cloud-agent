@@ -45,8 +45,7 @@ COPY scripts/ingest_documents.py ./scripts/
 
 # Build the LanceDB index at image build time
 # This bakes your knowledge into the container for instant queries
-ARG OPENAI_API_KEY
-ENV OPENAI_API_KEY=${OPENAI_API_KEY}
+# Note: fastembed runs locally, no API key needed for embeddings
 RUN if [ -d "knowledge" ] && [ "$(ls -A knowledge 2>/dev/null)" ]; then \
         uv run python scripts/ingest_documents.py --dir knowledge/ --pattern "*.md" --output ./knowledge_base; \
     else \

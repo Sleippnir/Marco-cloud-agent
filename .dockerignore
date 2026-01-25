@@ -98,10 +98,8 @@ storage/
 data/
 uploads/
 
-# Lock files (installed fresh in container)
-uv.lock
+# Lock files (poetry not used, uv.lock IS needed)
 poetry.lock
 
 # Old/backup versions
-botrunner.py
-main.py
+# (deleted - no longer needed)

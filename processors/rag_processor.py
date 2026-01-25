@@ -21,7 +21,7 @@ from pipecat.frames.frames import (
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
-from rag import SupabaseRAGRetriever
+from rag import LanceDBRetriever
 
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ class RAGContextProcessor(FrameProcessor):
 
     def __init__(
         self,
-        retriever: SupabaseRAGRetriever,
+        retriever: LanceDBRetriever,
         strategy: str = "AUGMENT_SYSTEM",
         min_query_length: int = 10,
         **kwargs,
@@ -52,7 +52,7 @@ class RAGContextProcessor(FrameProcessor):
         """Initialize the RAG context processor.
 
         Args:
-            retriever: The Supabase RAG retriever instance.
+            retriever: The LanceDB retriever instance.
             strategy: Context injection strategy ('AUGMENT_SYSTEM' or 'INJECT_CONTEXT').
             min_query_length: Minimum characters in transcription to trigger RAG.
             **kwargs: Additional arguments passed to FrameProcessor.

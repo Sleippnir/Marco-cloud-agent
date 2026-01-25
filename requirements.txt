@@ -3,5 +3,6 @@
 # and bot.py has a fallback stub for local testing
 pipecat-ai[cartesia,daily,deepgram,openai,simli]>=0.0.99
 lancedb>=0.6.0
+fastembed>=0.4.0
 python-json-logger>=2.0.0
 python-dotenv>=1.0.0

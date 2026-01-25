@@ -1,39 +1,35 @@
-"""Embedding generation using Google's text-embedding API.
+"""Embedding generation using FastEmbed (local, no API required).
 
 Lightweight wrapper for generating embeddings compatible with LanceDB.
+Uses BAAI/bge-small-en-v1.5 by default (384 dimensions).
 """
 
-import os
 from typing import List
 
-from google import genai
+from fastembed import TextEmbedding
 
 
-class GoogleEmbeddings:
-    """Generate text embeddings using Google's embedding model.
+class LocalEmbeddings:
+    """Generate text embeddings using FastEmbed (local model).
 
-    Uses text-embedding-004 by default (768 dimensions).
+    Uses BAAI/bge-small-en-v1.5 by default (384 dimensions).
+    No API key required - runs locally.
     """
 
-    DEFAULT_MODEL = "text-embedding-004"
-    EMBEDDING_DIMENSION = 768
+    DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
+    EMBEDDING_DIMENSION = 384
 
     def __init__(
         self,
-        api_key: str | None = None,
         model: str = DEFAULT_MODEL,
     ) -> None:
-        """Initialize the embedding client.
+        """Initialize the embedding model.
 
         Args:
-            api_key: Google API key. Falls back to GOOGLE_API_KEY env var.
-            model: Embedding model name.
+            model: FastEmbed model name.
         """
-        self._api_key = api_key or os.getenv("GOOGLE_API_KEY")
-        if not self._api_key:
-            raise ValueError("Google API key required for embeddings")
-        self._client = genai.Client(api_key=self._api_key)
-        self._model = model
+        self._model = TextEmbedding(model_name=model)
+        self._model_name = model
 
     def embed_text(self, text: str) -> List[float]:
         """Generate embedding for a single text.
@@ -44,11 +40,8 @@ class GoogleEmbeddings:
         Returns:
             List of floats representing the embedding vector.
         """
-        result = self._client.models.embed_content(
-            model=self._model,
-            contents=text,
-        )
-        return list(result.embeddings[0].values)
+        embeddings = list(self._model.embed([text]))
+        return list(embeddings[0])
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """Generate embeddings for multiple documents.
@@ -59,16 +52,14 @@ class GoogleEmbeddings:
         Returns:
             List of embedding vectors.
         """
-        embeddings = []
-        for text in texts:
-            result = self._client.models.embed_content(
-                model=self._model,
-                contents=text,
-            )
-            embeddings.append(list(result.embeddings[0].values))
-        return embeddings
+        embeddings = list(self._model.embed(texts))
+        return [list(e) for e in embeddings]
 
     @property
     def dimension(self) -> int:
         """Return the embedding dimension."""
         return self.EMBEDDING_DIMENSION
+
+
+# Alias for backward compatibility
+Embeddings = LocalEmbeddings

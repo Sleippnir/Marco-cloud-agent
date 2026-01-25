@@ -5,9 +5,6 @@ grounding LLM responses in personal knowledge.
 """
 
 from rag.retriever import LanceDBRetriever, RetrievedDocument
-from rag.embeddings import GoogleEmbeddings
+from rag.embeddings import LocalEmbeddings
 
-# Backward compatibility alias
-SupabaseRAGRetriever = LanceDBRetriever
-
-__all__ = ["LanceDBRetriever", "SupabaseRAGRetriever", "GoogleEmbeddings", "RetrievedDocument"]
+__all__ = ["LanceDBRetriever", "LocalEmbeddings", "RetrievedDocument"]

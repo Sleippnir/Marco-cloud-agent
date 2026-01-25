@@ -13,7 +13,7 @@ from typing import List, Optional
 import lancedb
 from lancedb.table import Table
 
-from rag.embeddings import GoogleEmbeddings
+from rag.embeddings import LocalEmbeddings
 
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class LanceDBRetriever:
     def __init__(
         self,
         db_path: str | None = None,
-        embeddings: GoogleEmbeddings | None = None,
+        embeddings: LocalEmbeddings | None = None,
         table_name: str = DEFAULT_TABLE,
         match_count: int = DEFAULT_MATCH_COUNT,
         match_threshold: float = DEFAULT_MATCH_THRESHOLD,
@@ -58,13 +58,13 @@ class LanceDBRetriever:
 
         Args:
             db_path: Path to LanceDB directory. Falls back to LANCEDB_PATH env var.
-            embeddings: Embedding generator. Creates GoogleEmbeddings if not provided.
+            embeddings: Embedding generator. Creates LocalEmbeddings if not provided.
             table_name: Name of the documents table.
             match_count: Number of documents to retrieve.
             match_threshold: Minimum similarity score (0-1).
         """
         self._db_path = db_path or os.getenv("LANCEDB_PATH", self.DEFAULT_DB_PATH)
-        self._embeddings = embeddings or GoogleEmbeddings()
+        self._embeddings = embeddings or LocalEmbeddings()
         self._table_name = table_name
         self._match_count = match_count
         self._match_threshold = match_threshold
@@ -217,7 +217,3 @@ class LanceDBRetriever:
         if self._table is None:
             return 0
         return self._table.count_rows()
-
-
-# Alias for backward compatibility
-SupabaseRAGRetriever = LanceDBRetriever
