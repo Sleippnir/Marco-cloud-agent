@@ -12,17 +12,24 @@
 ARG BASE_IMAGE=python:3.12-slim
 FROM ${BASE_IMAGE}
 
-# Install system dependencies (ffmpeg for audio processing)
+# Install system dependencies (ffmpeg for audio processing, curl for uv install)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install uv for fast dependency management
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
 
 # Set working directory
 WORKDIR /bot
 
-# Install Python dependencies first for layer caching
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+# Copy dependency files first for layer caching
+COPY pyproject.toml uv.lock ./
+
+# Install Python dependencies with uv (frozen from lockfile)
+RUN uv sync --frozen --no-dev
 
 # Copy RAG module and processors
 COPY rag/ ./rag/
@@ -41,7 +48,7 @@ COPY scripts/ingest_documents.py ./scripts/
 ARG OPENAI_API_KEY
 ENV OPENAI_API_KEY=${OPENAI_API_KEY}
 RUN if [ -d "knowledge" ] && [ "$(ls -A knowledge 2>/dev/null)" ]; then \
-        python scripts/ingest_documents.py --dir knowledge/ --pattern "*.md" --output ./knowledge_base; \
+        uv run python scripts/ingest_documents.py --dir knowledge/ --pattern "*.md" --output ./knowledge_base; \
     else \
         echo "No knowledge files found, skipping index build"; \
         mkdir -p ./knowledge_base; \
@@ -70,4 +77,4 @@ LABEL org.opencontainers.image.version="1.0.0"
 LABEL ai.pipecat.agent="true"
 
 # For local testing (pipecat-base handles this in production)
-CMD ["python", "bot.py"]
+CMD ["uv", "run", "python", "bot.py"]
