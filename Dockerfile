@@ -38,8 +38,8 @@ COPY scripts/ingest_documents.py ./scripts/
 
 # Build the LanceDB index at image build time
 # This bakes your knowledge into the container for instant queries
-ARG GOOGLE_API_KEY
-ENV GOOGLE_API_KEY=${GOOGLE_API_KEY}
+ARG OPENAI_API_KEY
+ENV OPENAI_API_KEY=${OPENAI_API_KEY}
 RUN if [ -d "knowledge" ] && [ "$(ls -A knowledge 2>/dev/null)" ]; then \
         python scripts/ingest_documents.py --dir knowledge/ --pattern "*.md" --output ./knowledge_base; \
     else \
@@ -60,7 +60,7 @@ ENV BOT_NAME="Marco"
 ENV DEEPGRAM_MODEL=nova-3-general
 ENV DEEPGRAM_LANGUAGE=en-US
 ENV CARTESIA_MODEL=sonic-3
-ENV GOOGLE_MODEL=gemini-2.5-flash
+ENV OPENAI_MODEL=gpt-4o-mini
 ENV LOG_LEVEL=INFO
 
 # Labels
