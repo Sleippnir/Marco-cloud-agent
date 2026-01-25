@@ -8,7 +8,7 @@ Frame flow:
 
 Interruption policy:
     - Barge-in enabled via PipelineParams
-    - VAD-based turn detection with WebRTC analyzer
+    - SileroVAD for speech detection, SmartTurnAnalyzer for intelligent turn-taking
 """
 
 import asyncio
@@ -25,14 +25,24 @@ from pipecat.processors.frame_processor import FrameDirection
 from pipecat.services.llm_service import FunctionCallParams
 from deepgram import LiveOptions
 
+from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
+from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
-from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.processors.aggregators.llm_response_universal import (
+    LLMContextAggregatorPair,
+    LLMUserAggregatorParams,
+)
+from pipecat.adapters.schemas.function_schema import FunctionSchema
+from pipecat.adapters.schemas.tools_schema import ToolsSchema
 from pipecat.services.cartesia.tts import CartesiaTTSService
 from pipecat.services.deepgram.stt import DeepgramSTTService
-from pipecat.services.google.llm import GoogleLLMService
+from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.simli.video import SimliVideoService
-from pipecat.transports.daily.transport import DailyParams, DailyTransport, WebRTCVADAnalyzer
+from pipecat.transports.daily.transport import DailyParams, DailyTransport
 from pipecat.transcriptions.language import Language
+from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
+from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
 from rag import LanceDBRetriever
 from processors import RAGContextProcessor
@@ -68,9 +78,9 @@ class BotConfig:
     cartesia_voice_id: str
     cartesia_model: str
 
-    # Google LLM
-    google_api_key: str
-    google_model: str
+    # OpenAI LLM
+    openai_api_key: str
+    openai_model: str
     system_instruction: str
 
     # Bot identity
@@ -117,8 +127,8 @@ If you don't know something, say so honestly."""
         cartesia_api_key=_require_env("CARTESIA_API_KEY"),
         cartesia_voice_id=_require_env("CARTESIA_VOICE_ID"),
         cartesia_model=os.getenv("CARTESIA_MODEL", "sonic-3"),
-        google_api_key=_require_env("GOOGLE_API_KEY"),
-        google_model=os.getenv("GOOGLE_MODEL", "gemini-2.5-flash"),
+        openai_api_key=_require_env("OPENAI_API_KEY"),
+        openai_model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
         system_instruction=os.getenv("SYSTEM_INSTRUCTION", default_instruction),
         bot_name=os.getenv("BOT_NAME", "Marco"),
         rag_enabled=os.getenv("RAG_ENABLED", "true").lower() == "true",
@@ -149,33 +159,35 @@ async def main(room_url: str, token: str | None = None) -> None:
         except Exception as e:
             logger.warning(f"RAG initialization failed, continuing without RAG: {e}")
 
-    # VAD for turn detection
-    vad_analyzer = WebRTCVADAnalyzer(
-        sample_rate=16000,
-        params=VADParams(),
-    )
-
-    # Daily WebRTC transport
+    # Daily WebRTC transport with video output enabled for Simli
     transport = DailyTransport(
         room_url=config.daily_room_url,
         token=config.daily_token,
         bot_name=config.bot_name,
         params=DailyParams(
             api_key=config.daily_api_key,
-            vad_analyzer=vad_analyzer,
             audio_in_enabled=True,
             audio_out_enabled=True,
             video_out_enabled=True,
+            video_out_is_live=True,  # Critical for Simli video output!
+            video_out_width=512,
+            video_out_height=512,
             transcription_enabled=False,  # We use Deepgram directly
+            # SileroVAD for speech detection, SmartTurn handles intelligent turn-taking
+            vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.2)),
         ),
     )
 
-    # Deepgram STT
+    # Deepgram STT with smart endpointing for better turn detection
     stt = DeepgramSTTService(
         api_key=config.deepgram_api_key,
         live_options=LiveOptions(
             model=config.deepgram_model,
             language=config.deepgram_language,
+            smart_format=True,
+            # Endpointing: wait for natural sentence ends, not just silence
+            endpointing=1500,  # 1500ms before finalizing
+            utterance_end_ms=2000,  # 2s max utterance gap
         ),
     )
 
@@ -189,30 +201,30 @@ async def main(room_url: str, token: str | None = None) -> None:
         )
         logger.info("RAG context processor enabled")
 
-    # Google Gemini LLM with function calling tools
-    tools = [
-        {
-            "function_declarations": [
-                {
-                    "name": "end_call",
-                    "description": "Ends the conversation and hangs up the call. Only use this when the user explicitly says goodbye, wants to end the call, or indicates they are done.",
-                    "parameters": {"type": "object", "properties": {}},
-                }
-            ]
-        }
-    ]
+    # OpenAI LLM with function calling tools
+    tools = ToolsSchema(
+        standard_tools=[
+            FunctionSchema(
+                name="end_call",
+                description="Ends the conversation and hangs up the call. Only use this when the user explicitly says goodbye, wants to end the call, or indicates they are done.",
+                properties={},
+                required=[],
+            )
+        ]
+    )
 
-    llm = GoogleLLMService(
-        api_key=config.google_api_key,
-        model=config.google_model,
-        system_instruction=config.system_instruction,
-        tools=tools,
+    llm = OpenAILLMService(
+        api_key=config.openai_api_key,
+        model=config.openai_model,
     )
 
     # Register end call handler
     async def end_call_handler(params: FunctionCallParams):
-        """Handle the end_call function - terminates the session gracefully."""
+        """Handle the end_call function - says goodbye then terminates."""
         logger.info("End call requested by user")
+        # Say goodbye first, then end after a delay
+        await task.queue_frames([TextFrame("Goodbye! Take care.")])
+        await asyncio.sleep(2)  # Wait for TTS to speak
         # Push EndTaskFrame upstream to signal pipeline termination
         await params.llm.push_frame(EndTaskFrame(), FrameDirection.UPSTREAM)
 
@@ -225,21 +237,35 @@ async def main(room_url: str, token: str | None = None) -> None:
         model=config.cartesia_model,
     )
 
-    # Simli avatar video with proper session timeout configuration
+    # Simli avatar video with logging enabled for debugging
     simli = SimliVideoService(
         api_key=config.simli_api_key,
         face_id=config.simli_face_id,
         params=SimliVideoService.InputParams(
             max_session_length=3600,  # 1 hour
-            max_idle_time=300,        # 5 minutes (matches old SimliConfig default)
+            max_idle_time=300,        # 5 minutes
+            enable_logging=True,      # Enable Simli SDK logging
         ),
     )
 
-    # LLM context for conversation history
-    # Note: Don't include system message here - GoogleLLMService uses system_instruction param
-    messages = []
-    context = OpenAILLMContext(messages)
-    context_aggregator = llm.create_context_aggregator(context)
+    # LLM context with system prompt, tools, and SmartTurn analyzer
+    messages = [
+        {
+            "role": "system",
+            "content": config.system_instruction + " When the user says goodbye or wants to end the call, use the end_call function.",
+        },
+    ]
+    context = LLMContext(messages, tools=tools)
+    
+    # Use SmartTurnAnalyzer to detect natural turn-taking (not just silence)
+    user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
+        context,
+        user_params=LLMUserAggregatorParams(
+            user_turn_strategies=UserTurnStrategies(
+                stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())]
+            ),
+        ),
+    )
 
     # Build processor chain
     processors = [
@@ -252,7 +278,7 @@ async def main(room_url: str, token: str | None = None) -> None:
         processors.append(rag_processor)
 
     processors.extend([
-        context_aggregator.user(),
+        user_aggregator,
         llm,
         tts,
     ])
@@ -263,7 +289,7 @@ async def main(room_url: str, token: str | None = None) -> None:
     
     processors.extend([
         transport.output(),
-        context_aggregator.assistant(),
+        assistant_aggregator,
     ])
 
     pipeline = Pipeline(processors)
@@ -283,34 +309,8 @@ async def main(room_url: str, token: str | None = None) -> None:
         logger.info(f"First participant joined: {participant['id']}")
         # Start capturing participant audio
         await transport.capture_participant_transcription(participant["id"])
-        
-        # Wait for Simli's WebSocket to be ready (if Simli is enabled)
-        if simli:
-            # Access Simli's internal client ready state
-            max_wait = 30  # seconds
-            waited = 0.0
-            simli_ready = False
-            
-            while waited < max_wait:
-                # Check if Simli's client is ready
-                if hasattr(simli, '_client') and simli._client and getattr(simli._client, 'ready', False):
-                    simli_ready = True
-                    break
-                logger.debug(f"Waiting for Simli WebSocket... ({waited:.1f}s)")
-                await asyncio.sleep(0.5)
-                waited += 0.5
-            
-            if simli_ready:
-                logger.info(f"Simli ready after {waited:.1f}s, sending greeting")
-                await task.queue_frames([TextFrame("Hey there! How can I help you?")])
-            else:
-                logger.warning(f"Simli not ready after {max_wait}s timeout, skipping video greeting")
-                # Still send audio-only greeting
-                await task.queue_frames([TextFrame("Hey there! How can I help you?")])
-        else:
-            # No Simli, just send greeting
-            logger.info("Sending greeting (no video)")
-            await task.queue_frames([TextFrame("Hey there! How can I help you?")])
+        # Send greeting
+        await task.queue_frames([TextFrame("Hey there! How can I help you?")])
 
     @transport.event_handler("on_participant_left")
     async def on_participant_left(transport, participant, reason):
