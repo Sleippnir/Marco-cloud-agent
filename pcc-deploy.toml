@@ -7,8 +7,8 @@
 # Agent identification
 agent_name = "marco-voice-avatar"
 
-# Container image (update with your registry)
-image = "your-registry/marco-avatar:latest"
+# Container image
+image = "sleippnir/marco-voice-avatar:latest"
 
 # Private registry credentials (if needed)
 # image_credentials = "dockerhub-credentials"
@@ -19,10 +19,10 @@ image = "your-registry/marco-avatar:latest"
 agent_profile = "agent-1x"
 
 # Secret set with API keys
-secret_set = "avatar-secrets"
+secret_set = "marco"
 
 # Deployment region
-region = "us-west"
+region = "us-east"
 
 # -----------------------------------------------------------------------------
 # Scaling
@@ -30,27 +30,3 @@ region = "us-west"
 [scaling]
 min_agents = 1    # Keep one warm for instant response
 max_agents = 5    # Personal avatar doesn't need massive scale
-
-# -----------------------------------------------------------------------------
-# Environment Variables
-# -----------------------------------------------------------------------------
-[env]
-RAG_ENABLED = "true"
-RAG_MATCH_COUNT = "3"
-RAG_MATCH_THRESHOLD = "0.5"
-RAG_MIN_QUERY_LENGTH = "8"
-BOT_NAME = "Marco"
-DEEPGRAM_MODEL = "nova-3-general"
-DEEPGRAM_LANGUAGE = "en-US"
-CARTESIA_MODEL = "sonic-3"
-OPENAI_MODEL = "gpt-4o-mini"
-LOG_LEVEL = "INFO"
-
-# -----------------------------------------------------------------------------
-# Health Check
-# -----------------------------------------------------------------------------
-[health]
-path = "/health"
-interval = 30
-timeout = 10
-unhealthy_threshold = 3

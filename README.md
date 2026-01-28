@@ -5,7 +5,7 @@ A real-time voice agent with video avatar powered by Pipecat, deployable to Pipe
 ## Features
 
 - **Voice Conversation**: Deepgram STT + Cartesia TTS for natural speech
-- **AI Brain**: Google Gemini 2.5 Flash for fast, intelligent responses
+- **AI Brain**: OpenAI GPT-4o-mini for fast, intelligent responses
 - **Video Avatar**: Simli lip-synced video avatar
 - **RAG Knowledge Base**: LanceDB-embedded retrieval for grounded answers
 - **Pipecat Cloud Ready**: One-command deployment with auto-scaling
@@ -13,7 +13,7 @@ A real-time voice agent with video avatar powered by Pipecat, deployable to Pipe
 ## Architecture
 
 ```
-Audio In → VAD → Deepgram STT → [RAG Context] → Gemini LLM → Cartesia TTS → Simli Video → Out
+Audio In → VAD → Deepgram STT → [RAG Context] → OpenAI LLM → Cartesia TTS → Simli Video → Out
 ```
 
 ## Quick Start
@@ -21,7 +21,7 @@ Audio In → VAD → Deepgram STT → [RAG Context] → Gemini LLM → Cartesia 
 ### Prerequisites
 
 - Python 3.12+
-- API keys for: Daily, Deepgram, Google AI, Cartesia, Simli
+- API keys for: Daily, Deepgram, OpenAI, Cartesia, Simli
 - Docker (for deployment)
 
 ### Platform Requirements
@@ -67,7 +67,7 @@ Audio In → VAD → Deepgram STT → [RAG Context] → Gemini LLM → Cartesia 
    pipecat cloud secrets set avatar-secrets \
      DAILY_API_KEY=xxx \
      DEEPGRAM_API_KEY=xxx \
-     GOOGLE_API_KEY=xxx \
+     OPENAI_API_KEY=xxx \
      CARTESIA_API_KEY=xxx \
      CARTESIA_VOICE_ID=xxx \
      SIMLI_API_KEY=xxx \
@@ -78,12 +78,12 @@ Audio In → VAD → Deepgram STT → [RAG Context] → Gemini LLM → Cartesia 
 
 4. Deploy:
    ```bash
-   pipecat cloud deploy
+   pipecat cloud deploy --no-credentials --force
    ```
 
 5. Start a session:
    ```bash
-   pipecat cloud agent start marco-voice-avatar
+   pipecat cloud agent start marco-voice-avatar --use-daily --force
    ```
 
 ## Configuration
@@ -94,18 +94,18 @@ Audio In → VAD → Deepgram STT → [RAG Context] → Gemini LLM → Cartesia 
 |----------|----------|---------|-------------|
 | `DAILY_API_KEY` | Yes | - | Daily.co API key |
 | `DEEPGRAM_API_KEY` | Yes | - | Deepgram STT API key |
-| `GOOGLE_API_KEY` | Yes | - | Google AI API key |
+| `OPENAI_API_KEY` | Yes | - | OpenAI API key |
 | `CARTESIA_API_KEY` | Yes | - | Cartesia TTS API key |
 | `CARTESIA_VOICE_ID` | Yes | - | Cartesia voice ID |
 | `SIMLI_API_KEY` | Yes | - | Simli API key |
 | `SIMLI_FACE_ID` | Yes | - | Simli face/avatar ID |
 | `RAG_ENABLED` | No | `true` | Enable RAG context injection |
 | `BOT_NAME` | No | `Marco` | Bot display name |
-| `GOOGLE_MODEL` | No | `gemini-2.5-flash` | Google model to use |
+| `OPENAI_MODEL` | No | `gpt-4o-mini` | OpenAI model to use |
 
 ### RAG Knowledge Base
 
-Place markdown files in `knowledge/` directory before building the Docker image. The knowledge base is indexed at build time for zero-latency queries.
+Place markdown files in `knowledge/` directory before building the Docker image. The knowledge base is indexed at build time for zero-latency queries using local FastEmbed embeddings.
 
 ```bash
 # Add your documents

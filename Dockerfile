@@ -22,8 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
-# Set working directory
-WORKDIR /bot
+# Use base image working directory
+WORKDIR /app
 
 # Copy dependency files first for layer caching
 COPY pyproject.toml uv.lock ./
@@ -47,7 +47,7 @@ COPY scripts/ingest_documents.py ./scripts/
 # This bakes your knowledge into the container for instant queries
 # Note: fastembed runs locally, no API key needed for embeddings
 RUN if [ -d "knowledge" ] && [ "$(ls -A knowledge 2>/dev/null)" ]; then \
-        uv run python scripts/ingest_documents.py --dir knowledge/ --pattern "*.md" --output ./knowledge_base; \
+        uv run python scripts/ingest_documents.py --dir knowledge/ --pattern "*.md" --output ./knowledge_base || (echo "Ingestion failed, creating empty knowledge_base"; mkdir -p ./knowledge_base); \
     else \
         echo "No knowledge files found, skipping index build"; \
         mkdir -p ./knowledge_base; \
@@ -75,5 +75,4 @@ LABEL org.opencontainers.image.description="Personal voice avatar with embedded 
 LABEL org.opencontainers.image.version="1.0.0"
 LABEL ai.pipecat.agent="true"
 
-# For local testing (pipecat-base handles this in production)
-CMD ["uv", "run", "python", "bot.py"]
+# Note: No CMD needed. Pipecat base image runs bot.py.

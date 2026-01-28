@@ -186,8 +186,8 @@ async def main(room_url: str, token: str | None = None) -> None:
             language=config.deepgram_language,
             smart_format=True,
             # Endpointing: wait for natural sentence ends, not just silence
-            endpointing=1500,  # 1500ms before finalizing
-            utterance_end_ms=2000,  # 2s max utterance gap
+            endpointing=1200,  # 1200ms before finalizing
+            utterance_end_ms=1500,  # 1.5s max utterance gap
         ),
     )
 

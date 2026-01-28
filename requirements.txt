@@ -1,8 +1,11 @@
 # Generated from pyproject.toml dependencies
 # Note: pipecat-cloud is excluded as it's only needed for Pipecat Cloud deployment
 # and bot.py has a fallback stub for local testing
-pipecat-ai[cartesia,daily,deepgram,openai,simli]>=0.0.99
+pipecat-ai[cartesia,daily,deepgram,openai,simli,local-smart-turn-v3,runner]>=0.0.99
 lancedb>=0.6.0
 fastembed>=0.4.0
+torch>=2.3.0
+fastapi>=0.111.0
+pipecatcloud>=0.2.18
 python-json-logger>=2.0.0
 python-dotenv>=1.0.0
