@@ -6,9 +6,10 @@ A real-time voice agent with video avatar powered by Pipecat, deployable to Pipe
 
 - **Voice Conversation**: Deepgram STT + Cartesia TTS for natural speech
 - **AI Brain**: OpenAI GPT-4o-mini for fast, intelligent responses
-- **Video Avatar**: Simli lip-synced video avatar
+- **Video Avatar**: Simli lip-synced video clone of yourself
 - **RAG Knowledge Base**: LanceDB-embedded retrieval for grounded answers
 - **Pipecat Cloud Ready**: One-command deployment with auto-scaling
+- **Website Integration**: Click-to-chat from your headshot (see [INTEGRATION.md](./INTEGRATION.md))
 
 ## Architecture
 
@@ -40,7 +41,12 @@ Audio In → VAD → Deepgram STT → [RAG Context] → OpenAI LLM → Cartesia 
    ```bash
    git clone https://github.com/Sleippnir/Marco-cloud-agent.git
    cd Marco-cloud-agent
-   pip install -r requirements.txt
+   
+   # Install uv (fast Python package manager)
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # Install dependencies from lockfile
+   uv sync
    ```
 
 2. Create `.env` file (see `env.example`):
@@ -51,7 +57,7 @@ Audio In → VAD → Deepgram STT → [RAG Context] → OpenAI LLM → Cartesia 
 
 3. Run locally:
    ```bash
-   python bot.py
+   uv run python bot.py
    ```
 
 ### Pipecat Cloud Deployment
@@ -64,7 +70,7 @@ Audio In → VAD → Deepgram STT → [RAG Context] → OpenAI LLM → Cartesia 
 
 2. Create secrets in Pipecat Cloud:
    ```bash
-   pipecat cloud secrets set avatar-secrets \
+   pipecat cloud secrets set marco \
      DAILY_API_KEY=xxx \
      DEEPGRAM_API_KEY=xxx \
      OPENAI_API_KEY=xxx \
@@ -122,7 +128,9 @@ docker build -t your-registry/marco-avatar:latest .
 ├── simli_debug_bot.py  # Debug bot for Simli testing
 ├── Dockerfile          # Container build with embedded RAG
 ├── pcc-deploy.toml     # Pipecat Cloud deployment config
-├── requirements.txt    # Python dependencies
+├── pyproject.toml      # Python project config (uv)
+├── uv.lock             # Locked dependencies
+├── requirements.txt    # Legacy pip requirements (use uv instead)
 ├── rag/                # RAG retrieval module
 │   ├── embeddings.py   # Local embeddings (fastembed)
 │   └── retriever.py    # LanceDB vector search

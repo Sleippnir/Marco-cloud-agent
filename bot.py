@@ -133,8 +133,8 @@ If you don't know something, say so honestly."""
         bot_name=os.getenv("BOT_NAME", "Marco"),
         rag_enabled=os.getenv("RAG_ENABLED", "true").lower() == "true",
         rag_match_count=int(os.getenv("RAG_MATCH_COUNT", "3")),
-        rag_match_threshold=float(os.getenv("RAG_MATCH_THRESHOLD", "0.7")),
-        rag_min_query_length=int(os.getenv("RAG_MIN_QUERY_LENGTH", "10")),
+        rag_match_threshold=float(os.getenv("RAG_MATCH_THRESHOLD", "0.5")),
+        rag_min_query_length=int(os.getenv("RAG_MIN_QUERY_LENGTH", "8")),
     )
 
 
